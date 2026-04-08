@@ -23,6 +23,22 @@ def _screen_point(local_x: float, local_y: float) -> tuple[float, float]:
     return (CENTER_X + local_x, BASE_Y - local_y)
 
 
+def _region_from_bounds(
+    left: float,
+    top: float,
+    right: float,
+    bottom: float,
+    padding: float = 0,
+) -> dict:
+    """Convert rectangle bounds into a hotspot region."""
+    return {
+        "x": round(left - padding, 1),
+        "y": round(top - padding, 1),
+        "w": round((right - left) + (padding * 2), 1),
+        "h": round((bottom - top) + (padding * 2), 1),
+    }
+
+
 def _path_from_points(points: list[tuple[float, float]], close: bool = False) -> str:
     """Convert points into an SVG path."""
     if not points:
@@ -96,6 +112,21 @@ def _chain_regions() -> list[dict]:
             }
         )
     return regions
+
+
+def _arch_region() -> dict:
+    """Return a hotspot aligned to the upper pointed-fifth profile."""
+    profile = _profile_points(0.22, 0.78)
+    xs = [x for x, _ in profile]
+    ys = [y for _, y in profile]
+    _, apex_y = _screen_point(0, MAX_HEIGHT)
+    return _region_from_bounds(
+        min(xs),
+        apex_y - 30,
+        max(xs),
+        max(ys),
+        padding=12,
+    )
 
 
 def _arch_highlight() -> list[dict]:
@@ -173,21 +204,48 @@ def _herringbone_region() -> dict:
     band = _outer_shell_band(72, 232)
     xs = [point[0] for point in band]
     ys = [point[1] for point in band]
-    return {
-        "x": round(min(xs) - 8, 1),
-        "y": round(min(ys) - 8, 1),
-        "w": round((max(xs) - min(xs)) + 16, 1),
-        "h": round((max(ys) - min(ys)) + 16, 1),
-    }
+    return _region_from_bounds(min(xs), min(ys), max(xs), max(ys), padding=8)
+
+
+def _hoist_region() -> dict:
+    """Return a hotspot that wraps the visible hoist machinery."""
+    pulley_x = renderer.HOIST_MAST_X + renderer.HOIST_PULLEY_OFFSET_X
+    pulley_y = renderer.HOIST_MAST_TOP + renderer.HOIST_PULLEY_OFFSET_Y
+    beam_end_y = renderer.HOIST_MAST_BOTTOM - 8
+    ox_y = beam_end_y - renderer.HOIST_OX_BASELINE_OFFSET_Y
+    return _region_from_bounds(
+        min(
+            renderer.HOIST_MAST_X - renderer.HOIST_ARM_LEFT,
+            pulley_x - (renderer.HOIST_CRATE_WIDTH / 2),
+            renderer.HOIST_OX_X - (renderer.HOIST_OX_WIDTH / 2),
+        ),
+        min(
+            renderer.HOIST_MAST_TOP,
+            ox_y - renderer.HOIST_OX_TOP_OFFSET,
+        ),
+        max(
+            renderer.HOIST_MAST_X + renderer.HOIST_ARM_RIGHT,
+            renderer.HOIST_BEAM_END_X,
+            renderer.HOIST_OX_X + (renderer.HOIST_OX_WIDTH / 2),
+        ),
+        max(
+            renderer.HOIST_MAST_BOTTOM,
+            pulley_y + renderer.HOIST_CRATE_DROP + renderer.HOIST_CRATE_HEIGHT,
+            ox_y - renderer.HOIST_OX_TOP_OFFSET + renderer.HOIST_OX_HEIGHT,
+        ),
+        padding=12,
+    )
 
 
 def _hoist_highlight() -> list[dict]:
     """Build highlight geometry for the hoist components."""
-    mast_x = 660
-    mast_top = 138
-    mast_bottom = 438
-    pulley_x = mast_x + 26
-    pulley_y = mast_top + 18
+    mast_x = renderer.HOIST_MAST_X
+    mast_top = renderer.HOIST_MAST_TOP
+    mast_bottom = renderer.HOIST_MAST_BOTTOM
+    pulley_x = mast_x + renderer.HOIST_PULLEY_OFFSET_X
+    pulley_y = mast_top + renderer.HOIST_PULLEY_OFFSET_Y
+    beam_end_y = mast_bottom - 8
+    ox_y = beam_end_y - renderer.HOIST_OX_BASELINE_OFFSET_Y
     return [
         {
             "type": "line",
@@ -201,10 +259,20 @@ def _hoist_highlight() -> list[dict]:
         },
         {
             "type": "line",
-            "x1": mast_x - 58,
+            "x1": mast_x - renderer.HOIST_ARM_LEFT,
             "y1": pulley_y,
-            "x2": mast_x + 34,
+            "x2": mast_x + renderer.HOIST_ARM_RIGHT,
             "y2": pulley_y,
+            "stroke": "rgba(255, 215, 121, 0.95)",
+            "strokeWidth": 4,
+            "strokeLinecap": "round",
+        },
+        {
+            "type": "line",
+            "x1": mast_x,
+            "y1": beam_end_y,
+            "x2": renderer.HOIST_BEAM_END_X,
+            "y2": beam_end_y,
             "stroke": "rgba(255, 215, 121, 0.95)",
             "strokeWidth": 4,
             "strokeLinecap": "round",
@@ -214,7 +282,7 @@ def _hoist_highlight() -> list[dict]:
             "x1": pulley_x,
             "y1": pulley_y,
             "x2": pulley_x,
-            "y2": pulley_y + 116,
+            "y2": pulley_y + renderer.HOIST_CRATE_DROP,
             "stroke": "rgba(255, 215, 121, 0.95)",
             "strokeWidth": 4,
             "strokeLinecap": "round",
@@ -222,21 +290,32 @@ def _hoist_highlight() -> list[dict]:
         {
             "type": "circle",
             "cx": mast_x,
-            "cy": mast_bottom - 42,
-            "r": 28,
+            "cy": mast_bottom - renderer.HOIST_GEAR_OFFSET_Y,
+            "r": renderer.HOIST_GEAR_RADIUS + 4,
             "fill": "rgba(255, 213, 128, 0.10)",
             "stroke": "rgba(255, 215, 121, 0.96)",
             "strokeWidth": 4,
         },
         {
             "type": "rect",
-            "x": pulley_x - 16,
-            "y": pulley_y + 116,
-            "w": 32,
-            "h": 26,
+            "x": pulley_x - (renderer.HOIST_CRATE_WIDTH / 2),
+            "y": pulley_y + renderer.HOIST_CRATE_DROP,
+            "w": renderer.HOIST_CRATE_WIDTH,
+            "h": renderer.HOIST_CRATE_HEIGHT,
             "rx": 4,
             "fill": "rgba(207, 114, 66, 0.22)",
             "stroke": "rgba(255, 215, 121, 0.9)",
+            "strokeWidth": 3,
+        },
+        {
+            "type": "rect",
+            "x": renderer.HOIST_OX_X - (renderer.HOIST_OX_WIDTH / 2),
+            "y": ox_y - renderer.HOIST_OX_TOP_OFFSET,
+            "w": renderer.HOIST_OX_WIDTH,
+            "h": renderer.HOIST_OX_HEIGHT,
+            "rx": 4,
+            "fill": "rgba(212, 197, 169, 0.14)",
+            "stroke": "rgba(255, 225, 167, 0.76)",
             "strokeWidth": 3,
         },
     ]
@@ -258,7 +337,7 @@ DETAILS = [
             "The arc centers sit at four-fifths of the span from the opposite side.",
             "Less lateral thrust meant less dependence on giant temporary scaffolding.",
         ],
-        "regions": [{"x": 286, "y": 122, "w": 224, "h": 152}],
+        "regions": [_arch_region()],
         "highlight": _arch_highlight(),
         "image": "assets/pointed-fifth-arch.png",
     },
@@ -318,7 +397,7 @@ DETAILS = [
             "The crane reduced wasted time at every lift cycle.",
             "Engineering innovation on the site mattered as much as the dome's final shape.",
         ],
-        "regions": [{"x": 585, "y": 116, "w": 188, "h": 342}],
+        "regions": [_hoist_region()],
         "highlight": _hoist_highlight(),
         "image": "assets/ox-hoist-crane.png",
     },
