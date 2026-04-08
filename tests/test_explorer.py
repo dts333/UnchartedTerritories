@@ -11,6 +11,16 @@ def test_details_have_unique_ids():
     assert len(ids) == len(set(ids))
 
 
+def test_details_define_regions_and_highlights():
+    for detail in explorer.DETAILS:
+        assert "regions" in detail
+        assert "highlight" in detail
+        assert len(detail["regions"]) >= 1
+        assert all(region["w"] > 0 for region in detail["regions"])
+        assert all(region["h"] > 0 for region in detail["regions"])
+        assert len(detail["highlight"]) >= 1
+
+
 def test_build_interactive_explorer_writes_bundle(tmp_path):
     index_path = explorer.build_interactive_explorer(tmp_path / "interactive")
 

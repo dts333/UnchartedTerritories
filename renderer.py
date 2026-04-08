@@ -14,6 +14,8 @@ HEIGHT = 600
 DOME_BASE_RADIUS = 210
 DOME_CENTER_X = WIDTH // 2
 DOME_BASE_Y = 468
+DRUM_WIDTH = 420
+PODIUM_WIDTH = 468
 
 # Phase annotations
 PHASE_ANNOTATIONS = {
@@ -213,9 +215,9 @@ def draw_drum(ctx: cairo.Context, progress: float):
     """Draw the octagonal drum and cathedral body beneath it."""
     visible_height = 72 * progress
 
-    podium_x = DOME_CENTER_X - 208
+    podium_x = DOME_CENTER_X - PODIUM_WIDTH / 2
     podium_y = DOME_BASE_Y + 10
-    podium_w = 416
+    podium_w = PODIUM_WIDTH
     podium_h = 78
     palette.set_color(ctx, palette.CREAM)
     ctx.rectangle(podium_x, podium_y, podium_w, podium_h)
@@ -225,52 +227,49 @@ def draw_drum(ctx: cairo.Context, progress: float):
     ctx.stroke()
 
     palette.set_color_alpha(ctx, palette.STONE_SHADOW, 0.15)
-    for x in range(podium_x + 16, podium_x + podium_w, 36):
+    for x in range(int(podium_x + 16), int(podium_x + podium_w), 36):
         ctx.rectangle(x, podium_y + 4, 2, podium_h - 8)
         ctx.fill()
 
-    wing_y = DOME_BASE_Y - 16
-    wing_h = 70
-    for wing_x in [DOME_CENTER_X - 170, DOME_CENTER_X + 50]:
-        palette.set_color(ctx, palette.STONE_LIGHT)
-        ctx.rectangle(wing_x, wing_y, 120, wing_h)
-        ctx.fill_preserve()
-        palette.set_color(ctx, palette.STONE_SHADOW)
-        ctx.set_line_width(1.6)
-        ctx.stroke()
-        palette.set_color_alpha(ctx, palette.STONE_SHADOW, 0.28)
-        for offset in range(0, wing_h, 15):
-            ctx.rectangle(wing_x + 1, wing_y + offset, 118, 2)
-            ctx.fill()
+    drum_x = DOME_CENTER_X - DRUM_WIDTH / 2
+    plinth_top = DOME_BASE_Y - 6
+    plinth_h = 16
+    palette.set_color(ctx, palette.STONE_LIGHT)
+    ctx.rectangle(drum_x - 12, plinth_top, DRUM_WIDTH + 24, plinth_h)
+    ctx.fill_preserve()
+    palette.set_color(ctx, palette.STONE_SHADOW)
+    ctx.set_line_width(1.6)
+    ctx.stroke()
+
+    palette.set_color_alpha(ctx, palette.STONE_SHADOW, 0.14)
+    for x in range(int(drum_x + 10), int(drum_x + DRUM_WIDTH), 34):
+        ctx.rectangle(x, plinth_top + 3, 2, plinth_h - 6)
+        ctx.fill()
 
     if visible_height <= 0:
         return
 
     drum_top = DOME_BASE_Y - visible_height
-    drum_w = 220
+    drum_w = DRUM_WIDTH
     drum_x = DOME_CENTER_X - drum_w / 2
 
+    drum_points = [
+        (drum_x, DOME_BASE_Y),
+        (drum_x, drum_top + 14),
+        (drum_x + 22, drum_top),
+        (drum_x + drum_w - 22, drum_top),
+        (drum_x + drum_w, drum_top + 14),
+        (drum_x + drum_w, DOME_BASE_Y),
+    ]
     palette.set_color(ctx, palette.STONE_LIGHT)
-    ctx.rectangle(drum_x, drum_top, drum_w, visible_height)
+    ctx.move_to(*drum_points[0])
+    for point in drum_points[1:]:
+        ctx.line_to(*point)
+    ctx.close_path()
     ctx.fill_preserve()
     palette.set_color(ctx, palette.STONE_SHADOW)
     ctx.set_line_width(2)
     ctx.stroke()
-
-    side_facets = [
-        [(drum_x, drum_top), (drum_x - 24, drum_top + 12), (drum_x - 24, DOME_BASE_Y), (drum_x, DOME_BASE_Y)],
-        [(drum_x + drum_w, drum_top), (drum_x + drum_w + 24, drum_top + 12), (drum_x + drum_w + 24, DOME_BASE_Y), (drum_x + drum_w, DOME_BASE_Y)],
-    ]
-    for idx, facet in enumerate(side_facets):
-        palette.set_color(ctx, palette.CREAM if idx == 0 else palette.DRUM_STONE)
-        ctx.move_to(*facet[0])
-        for point in facet[1:]:
-            ctx.line_to(*point)
-        ctx.close_path()
-        ctx.fill_preserve()
-        palette.set_color(ctx, palette.STONE_SHADOW)
-        ctx.set_line_width(1.5)
-        ctx.stroke()
 
     palette.set_color_alpha(ctx, palette.STONE_SHADOW, 0.20)
     for offset in range(10, int(visible_height), 14):
@@ -282,7 +281,7 @@ def draw_drum(ctx: cairo.Context, progress: float):
         window_w = 30
         window_h = min(34, visible_height - 16)
         palette.set_color_alpha(ctx, palette.VOID, 0.72)
-        for center_x in [DOME_CENTER_X - 56, DOME_CENTER_X, DOME_CENTER_X + 56]:
+        for center_x in [DOME_CENTER_X - 126, DOME_CENTER_X - 42, DOME_CENTER_X + 42, DOME_CENTER_X + 126]:
             ctx.rectangle(center_x - window_w / 2, window_y, window_w, max(window_h, 4))
             ctx.fill()
             palette.set_color_alpha(ctx, palette.GOLD, 0.22)
@@ -528,40 +527,105 @@ def draw_lantern(ctx: cairo.Context, progress: float = 1.0):
     """Draw the lantern atop the completed dome."""
     max_height = _get_dome_max_height()
     lantern_base_y = DOME_BASE_Y - max_height
-    lantern_height = 42 * progress
-    drum_w = 58
+    lantern_height = 54 * progress
 
+    base_points = [
+        (DOME_CENTER_X - 36, lantern_base_y - 2),
+        (DOME_CENTER_X - 24, lantern_base_y - 14),
+        (DOME_CENTER_X + 24, lantern_base_y - 14),
+        (DOME_CENTER_X + 36, lantern_base_y - 2),
+        (DOME_CENTER_X + 28, lantern_base_y + 5),
+        (DOME_CENTER_X - 28, lantern_base_y + 5),
+    ]
     palette.set_color(ctx, palette.STONE_LIGHT)
-    ctx.rectangle(DOME_CENTER_X - drum_w / 2, lantern_base_y - 10, drum_w, 10)
+    ctx.move_to(*base_points[0])
+    for point in base_points[1:]:
+        ctx.line_to(*point)
+    ctx.close_path()
     ctx.fill_preserve()
     palette.set_color(ctx, palette.STONE_SHADOW)
-    ctx.set_line_width(1.5)
+    ctx.set_line_width(1.4)
     ctx.stroke()
 
     if lantern_height <= 0:
         return
 
-    body_w = 46
-    body_top = lantern_base_y - 10 - lantern_height
+    body_top = lantern_base_y - 14 - lantern_height
+    body_points = [
+        (DOME_CENTER_X - 28, lantern_base_y - 14),
+        (DOME_CENTER_X - 22, body_top + 8),
+        (DOME_CENTER_X - 16, body_top),
+        (DOME_CENTER_X + 16, body_top),
+        (DOME_CENTER_X + 22, body_top + 8),
+        (DOME_CENTER_X + 28, lantern_base_y - 14),
+    ]
     palette.set_color(ctx, palette.CREAM)
-    ctx.rectangle(DOME_CENTER_X - body_w / 2, body_top, body_w, lantern_height)
+    ctx.move_to(*body_points[0])
+    for point in body_points[1:]:
+        ctx.line_to(*point)
+    ctx.close_path()
     ctx.fill_preserve()
     palette.set_color(ctx, palette.STONE_SHADOW)
     ctx.set_line_width(1.4)
     ctx.stroke()
 
     palette.set_color_alpha(ctx, palette.STONE_SHADOW, 0.22)
-    for offset in [10, 22, 34]:
-        ctx.rectangle(DOME_CENTER_X - body_w / 2 + offset, body_top + 4, 2, lantern_height - 8)
+    for offset in [-10, 0, 10]:
+        ctx.rectangle(DOME_CENTER_X + offset, body_top + 5, 2, lantern_height - 10)
         ctx.fill()
+
+    palette.set_color(ctx, palette.STONE_LIGHT)
+    ctx.rectangle(DOME_CENTER_X - 20, body_top - 7, 40, 7)
+    ctx.fill_preserve()
+    palette.set_color(ctx, palette.STONE_SHADOW)
+    ctx.set_line_width(1.2)
+    ctx.stroke()
 
     if progress >= 0.75:
         palette.set_color(ctx, palette.DARK_BROWN)
-        ctx.move_to(DOME_CENTER_X - body_w / 2 - 4, body_top + 2)
-        ctx.line_to(DOME_CENTER_X, body_top - 18)
-        ctx.line_to(DOME_CENTER_X + body_w / 2 + 4, body_top + 2)
+        ctx.move_to(DOME_CENTER_X - 18, body_top)
+        ctx.line_to(DOME_CENTER_X, body_top - 20)
+        ctx.line_to(DOME_CENTER_X + 18, body_top)
         ctx.close_path()
         ctx.fill()
+
+        palette.set_color(ctx, palette.GOLD)
+        ctx.arc(DOME_CENTER_X, body_top - 24, 3.5, 0, math.tau)
+        ctx.fill()
+
+
+def draw_springing_ring_overlay(ctx: cairo.Context):
+    """Draw the stone cornice where the dome springs from the drum."""
+    left = DOME_CENTER_X - DOME_BASE_RADIUS - 10
+    right = DOME_CENTER_X + DOME_BASE_RADIUS + 10
+    top = DOME_BASE_Y - 2
+    height = 12
+
+    palette.set_color_alpha(ctx, palette.STONE_SHADOW, 0.22)
+    ctx.rectangle(left + 10, top + height, right - left - 20, 6)
+    ctx.fill()
+
+    band_points = [
+        (left, top + 3),
+        (left + 14, top),
+        (right - 14, top),
+        (right, top + 3),
+        (right, top + height),
+        (left, top + height),
+    ]
+    palette.set_color(ctx, palette.STONE_LIGHT)
+    ctx.move_to(*band_points[0])
+    for point in band_points[1:]:
+        ctx.line_to(*point)
+    ctx.close_path()
+    ctx.fill_preserve()
+    palette.set_color(ctx, palette.STONE_SHADOW)
+    ctx.set_line_width(1.4)
+    ctx.stroke()
+
+    palette.set_color_alpha(ctx, palette.GOLD, 0.12)
+    ctx.rectangle(left + 18, top + 2, right - left - 36, 2)
+    ctx.fill()
 
 
 def draw_hoist_overview(ctx: cairo.Context):
@@ -669,6 +733,7 @@ def render_explorer_figure() -> cairo.ImageSurface:
     draw_drum(ctx, 1.0)
     draw_dome_exterior(ctx, 1.0)
     draw_dome_cutaway(ctx, 1.0, show_ribs=True, show_chains=True, show_herringbone=True)
+    draw_springing_ring_overlay(ctx)
     draw_lantern(ctx, 1.0)
     draw_hoist_overview(ctx)
 
@@ -720,6 +785,8 @@ def render_construction_frame(progress: float, phase: int) -> cairo.ImageSurface
         show_chains=(phase >= 8),
         show_herringbone=(phase >= 6),
     )
+    if dome_frac > 0:
+        draw_springing_ring_overlay(ctx)
 
     if phase >= 11:
         lantern_progress = progress if phase == 11 else 1.0
