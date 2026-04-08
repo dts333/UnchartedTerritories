@@ -38,3 +38,10 @@ def test_render_various_phases():
     for phase in [2, 4, 6, 8, 10, 11, 12]:
         surface = renderer.render_construction_frame(progress=0.5, phase=phase)
         assert surface.get_width() == 800
+
+
+def test_render_explorer_figure_returns_surface():
+    """The interactive explorer figure should render without error."""
+    surface = renderer.render_explorer_figure()
+    assert surface.get_width() == 800
+    assert surface.get_height() == 600

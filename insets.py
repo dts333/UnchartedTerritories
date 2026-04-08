@@ -12,46 +12,85 @@ import renderer
 import geometry
 
 
+def _rounded_rect(ctx: cairo.Context, x: float, y: float, w: float, h: float, r: float):
+    """Create a rounded rectangle path."""
+    r = min(r, w / 2, h / 2)
+    ctx.new_sub_path()
+    ctx.arc(x + w - r, y + r, r, -1.5708, 0)
+    ctx.arc(x + w - r, y + h - r, r, 0, 1.5708)
+    ctx.arc(x + r, y + h - r, r, 1.5708, 3.14159)
+    ctx.arc(x + r, y + r, r, 3.14159, 4.71239)
+    ctx.close_path()
+
+
 def _draw_inset_template(ctx: cairo.Context, title: str, explanation: str):
     """Draw the shared inset frame template."""
     renderer.draw_background(ctx)
 
     # Header
-    ctx.select_font_face("sans-serif", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
-    ctx.set_font_size(14)
-    palette.set_color(ctx, palette.GOLD)
-    header_text = f"DETAIL: {title}"
+    header_x, header_y = 34, 24
+    header_w, header_h = renderer.WIDTH - 68, 60
+    _rounded_rect(ctx, header_x, header_y, header_w, header_h, 16)
+    palette.set_color_alpha(ctx, palette.PANEL, 0.92)
+    ctx.fill_preserve()
+    palette.set_color_alpha(ctx, palette.GOLD, 0.65)
+    ctx.set_line_width(1.2)
+    ctx.stroke()
+
+    ctx.select_font_face("serif", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+    ctx.set_font_size(23)
+    palette.set_color(ctx, palette.TEXT)
+    header_text = title
     extents = ctx.text_extents(header_text)
-    ctx.move_to((renderer.WIDTH - extents.width) / 2, 28)
+    ctx.move_to((renderer.WIDTH - extents.width) / 2, header_y + 26)
     ctx.show_text(header_text)
-    ctx.set_line_width(1)
-    ctx.move_to(40, 40)
-    ctx.line_to(renderer.WIDTH - 40, 40)
+
+    ctx.select_font_face("sans-serif", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+    ctx.set_font_size(10)
+    palette.set_color(ctx, palette.GOLD)
+    badge = "DETAIL CARD"
+    badge_extents = ctx.text_extents(badge)
+    ctx.move_to((renderer.WIDTH - badge_extents.width) / 2, header_y + 44)
+    ctx.show_text(badge)
+
+    # Diagram panel
+    panel_x, panel_y = 52, 100
+    panel_w, panel_h = renderer.WIDTH - 104, 298
+    _rounded_rect(ctx, panel_x, panel_y, panel_w, panel_h, 24)
+    palette.set_color_alpha(ctx, palette.PANEL_ALT, 0.62)
+    ctx.fill_preserve()
+    palette.set_color_alpha(ctx, palette.GOLD, 0.26)
+    ctx.set_line_width(1.0)
     ctx.stroke()
 
     # Explanation box
-    box_x, box_y = 60, 430
-    box_w, box_h = renderer.WIDTH - 120, 120
-    palette.set_color(ctx, palette.ANNOTATION_BG)
-    ctx.rectangle(box_x, box_y, box_w, box_h)
-    ctx.fill()
-    palette.set_color(ctx, palette.GOLD)
-    ctx.set_line_width(1)
-    ctx.rectangle(box_x, box_y, box_w, box_h)
+    box_x, box_y = 60, 422
+    box_w, box_h = renderer.WIDTH - 120, 132
+    _rounded_rect(ctx, box_x, box_y, box_w, box_h, 18)
+    palette.set_color_alpha(ctx, palette.ANNOTATION_BG, 0.96)
+    ctx.fill_preserve()
+    palette.set_color_alpha(ctx, palette.GOLD, 0.78)
+    ctx.set_line_width(1.2)
     ctx.stroke()
 
     # Wrapped explanation text
     ctx.select_font_face("sans-serif", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
-    ctx.set_font_size(12)
+    ctx.set_font_size(13)
     palette.set_color(ctx, palette.TEXT)
-    _draw_wrapped_text(ctx, explanation, box_x + 16, box_y + 22, box_w - 32, line_height=18)
+    _draw_wrapped_text(ctx, explanation, box_x + 18, box_y + 42, box_w - 36, line_height=20)
+
+    ctx.select_font_face("sans-serif", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+    ctx.set_font_size(10)
+    palette.set_color(ctx, palette.GOLD)
+    ctx.move_to(box_x + 18, box_y + 22)
+    ctx.show_text("ENGINEERING IDEA")
 
     # Footer
     ctx.set_font_size(10)
-    palette.set_color(ctx, palette.GOLD)
+    palette.set_color(ctx, palette.TEXT_MUTED)
     footer = "returning to construction..."
     extents = ctx.text_extents(footer)
-    ctx.move_to((renderer.WIDTH - extents.width) / 2, renderer.HEIGHT - 12)
+    ctx.move_to((renderer.WIDTH - extents.width) / 2, renderer.HEIGHT - 18)
     ctx.show_text(footer)
 
 
@@ -80,134 +119,133 @@ def render_arch_comparison() -> cairo.ImageSurface:
     """Inset 1: Semicircular vs pointed-fifth arch comparison."""
     surface = renderer.create_surface()
     ctx = cairo.Context(surface)
-    _draw_inset_template(ctx, "POINTED-FIFTH ARCH",
-        "A semicircular dome pushes outward at the base, requiring heavy "
-        "scaffolding (centering) to hold it up during construction. "
-        "Brunelleschi's pointed-fifth arch redirects forces more vertically, "
-        "making each ring of bricks stable on its own. The center of each arc "
-        "is placed at 4/5 of the base diameter from the opposite side, "
-        "producing the distinctive pointed profile.")
+    _draw_inset_template(
+        ctx,
+        "Pointed-Fifth Arch",
+        "A semicircular dome pushes hard outward at the springing, so builders normally need heavy timber centering. "
+        "Brunelleschi's pointed profile redirects more force downward, allowing the masonry rings to stabilize themselves "
+        "as they rise. Each arc center sits at four-fifths of the span from the opposite side.",
+    )
 
-    mid_x = renderer.WIDTH // 2
-    base_y = 360
-    arch_radius = 100
+    base_y = 338
+    arch_radius = 96
+    card_y = 128
+    card_w = 276
+    card_h = 214
 
-    # === Left: Semicircular arch ===
-    center_x_left = mid_x // 2
-    palette.set_color(ctx, palette.SIENNA)
-    ctx.set_line_width(4)
-    ctx.arc(center_x_left, base_y, arch_radius, math.pi, 0)
-    ctx.stroke()
+    cards = [
+        (90, "Semicircular arch", "Strong lateral thrust", "Needs centering", palette.SIENNA),
+        (434, "Pointed-fifth arch", "More vertical thrust", "Self-supporting", palette.TERRACOTTA),
+    ]
 
-    # Base line
-    ctx.set_line_width(2)
-    ctx.move_to(center_x_left - arch_radius, base_y)
-    ctx.line_to(center_x_left + arch_radius, base_y)
-    ctx.stroke()
-
-    # Outward thrust arrows
-    palette.set_color(ctx, palette.GOLD)
-    ctx.set_line_width(2)
-    for dx in [-1, 1]:
-        ax = center_x_left + dx * arch_radius
-        ctx.move_to(ax, base_y - 10)
-        ctx.line_to(ax + dx * 35, base_y - 10)
-        # Arrowhead
-        ctx.move_to(ax + dx * 35, base_y - 10)
-        ctx.line_to(ax + dx * 28, base_y - 16)
-        ctx.move_to(ax + dx * 35, base_y - 10)
-        ctx.line_to(ax + dx * 28, base_y - 4)
+    for x, label, force_label, verdict, arch_color in cards:
+        _rounded_rect(ctx, x, card_y, card_w, card_h, 22)
+        palette.set_color_alpha(ctx, palette.PANEL, 0.74)
+        ctx.fill_preserve()
+        palette.set_color_alpha(ctx, palette.GOLD, 0.24)
+        ctx.set_line_width(1)
         ctx.stroke()
 
-    # Labels
-    palette.set_color(ctx, palette.TEXT)
-    ctx.select_font_face("sans-serif", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
-    ctx.set_font_size(13)
-    label = "Semicircular"
-    ext = ctx.text_extents(label)
-    ctx.move_to(center_x_left - ext.width / 2, base_y + 25)
-    ctx.show_text(label)
+        ctx.select_font_face("sans-serif", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+        ctx.set_font_size(12)
+        palette.set_color(ctx, palette.TEXT)
+        ext = ctx.text_extents(label)
+        ctx.move_to(x + (card_w - ext.width) / 2, card_y + 24)
+        ctx.show_text(label)
 
-    ctx.select_font_face("sans-serif", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
-    ctx.set_font_size(11)
-    palette.set_color(ctx, palette.GOLD)
-    label2 = "Needs scaffolding"
-    ext2 = ctx.text_extents(label2)
-    ctx.move_to(center_x_left - ext2.width / 2, base_y + 42)
-    ctx.show_text(label2)
+        ctx.select_font_face("sans-serif", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
+        ctx.set_font_size(10)
+        palette.set_color(ctx, palette.GOLD)
+        force_ext = ctx.text_extents(force_label)
+        ctx.move_to(x + (card_w - force_ext.width) / 2, card_y + 42)
+        ctx.show_text(force_label)
 
-    # Scaffolding lines (X marks under semicircle)
-    palette.set_color(ctx, palette.DRUM_STONE)
+        center_x = x + card_w / 2
+        palette.set_color(ctx, arch_color)
+        ctx.set_line_width(4)
+
+        if "Semicircular" in label:
+            ctx.arc(center_x, base_y, arch_radius, math.pi, 0)
+            ctx.stroke()
+            ctx.set_line_width(2)
+            ctx.move_to(center_x - arch_radius, base_y)
+            ctx.line_to(center_x + arch_radius, base_y)
+            ctx.stroke()
+
+            palette.set_color_alpha(ctx, palette.GOLD, 0.75)
+            ctx.set_line_width(2)
+            for dx in [-1, 1]:
+                ax = center_x + dx * (arch_radius - 8)
+                ctx.move_to(ax, base_y - 10)
+                ctx.line_to(ax + dx * 34, base_y - 10)
+                ctx.line_to(ax + dx * 26, base_y - 16)
+                ctx.move_to(ax + dx * 34, base_y - 10)
+                ctx.line_to(ax + dx * 26, base_y - 4)
+                ctx.stroke()
+
+            palette.set_color_alpha(ctx, palette.STONE_SHADOW, 0.45)
+            ctx.set_dash([4, 4])
+            for idx in range(-3, 4):
+                sx = center_x + idx * 24
+                ctx.move_to(sx, base_y)
+                ctx.line_to(sx, base_y - arch_radius + abs(idx) * 11)
+                ctx.stroke()
+            ctx.set_dash([])
+        else:
+            points = []
+            for i in range(81):
+                t = i / 80.0
+                px, py = geometry.dome_profile(t, arch_radius)
+                points.append((center_x + px, base_y - py))
+            ctx.move_to(*points[0])
+            for point in points[1:]:
+                ctx.line_to(*point)
+            ctx.stroke()
+            ctx.set_line_width(2)
+            ctx.move_to(center_x - arch_radius, base_y)
+            ctx.line_to(center_x + arch_radius, base_y)
+            ctx.stroke()
+
+            palette.set_color_alpha(ctx, palette.GOLD, 0.75)
+            ctx.set_line_width(2)
+            for dx in [-1, 1]:
+                ax = center_x + dx * (arch_radius - 4)
+                end_x = ax + dx * 10
+                end_y = base_y + 36
+                ctx.move_to(ax, base_y - 8)
+                ctx.line_to(end_x, end_y)
+                ctx.line_to(end_x - 5, end_y - 8)
+                ctx.move_to(end_x, end_y)
+                ctx.line_to(end_x + 5, end_y - 8)
+                ctx.stroke()
+
+            palette.set_color_alpha(ctx, palette.TEXT_MUTED, 0.55)
+            ctx.set_line_width(1)
+            ctx.move_to(center_x, base_y - arch_radius - 30)
+            ctx.line_to(center_x, base_y + 6)
+            ctx.stroke()
+
+        ctx.select_font_face("sans-serif", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+        ctx.set_font_size(11)
+        verdict_ext = ctx.text_extents(verdict)
+        palette.set_color(ctx, palette.TEXT)
+        ctx.move_to(x + (card_w - verdict_ext.width) / 2, card_y + card_h - 18)
+        ctx.show_text(verdict)
+
+    palette.set_color_alpha(ctx, palette.GOLD, 0.85)
+    _rounded_rect(ctx, 342, 204, 116, 50, 16)
+    ctx.fill_preserve()
+    palette.set_color_alpha(ctx, palette.PANEL, 0.9)
     ctx.set_line_width(1)
-    ctx.set_dash([3, 3])
-    for i in range(-3, 4):
-        sx = center_x_left + i * 25
-        ctx.move_to(sx, base_y)
-        ctx.line_to(sx, base_y - arch_radius + abs(i) * 10)
-        ctx.stroke()
-    ctx.set_dash([])
-
-    # === Right: Pointed-fifth arch ===
-    center_x_right = mid_x + mid_x // 2
-    palette.set_color(ctx, palette.TERRACOTTA)
-    ctx.set_line_width(4)
-
-    points = []
-    for i in range(81):
-        t = i / 80.0
-        x, y = geometry.dome_profile(t, arch_radius)
-        points.append((center_x_right + x, base_y - y))
-
-    ctx.move_to(*points[0])
-    for p in points[1:]:
-        ctx.line_to(*p)
     ctx.stroke()
-
-    # Base line
-    ctx.set_line_width(2)
-    ctx.move_to(center_x_right - arch_radius, base_y)
-    ctx.line_to(center_x_right + arch_radius, base_y)
-    ctx.stroke()
-
-    # Downward/vertical thrust arrows
-    palette.set_color(ctx, palette.GOLD)
-    ctx.set_line_width(2)
-    for dx in [-1, 1]:
-        ax = center_x_right + dx * arch_radius
-        ctx.move_to(ax, base_y - 10)
-        ctx.line_to(ax + dx * 8, base_y + 30)
-        # Arrowhead
-        end_x = ax + dx * 8
-        end_y = base_y + 30
-        ctx.move_to(end_x, end_y)
-        ctx.line_to(end_x - 5, end_y - 8)
-        ctx.move_to(end_x, end_y)
-        ctx.line_to(end_x + 5, end_y - 8)
-        ctx.stroke()
-
-    # Labels
-    palette.set_color(ctx, palette.TEXT)
     ctx.select_font_face("sans-serif", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
-    ctx.set_font_size(13)
-    label = "Pointed-Fifth"
-    ext = ctx.text_extents(label)
-    ctx.move_to(center_x_right - ext.width / 2, base_y + 25)
-    ctx.show_text(label)
-
-    ctx.select_font_face("sans-serif", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
-    ctx.set_font_size(11)
-    palette.set_color(ctx, palette.GOLD)
-    label2 = "Self-supporting"
-    ext2 = ctx.text_extents(label2)
-    ctx.move_to(center_x_right - ext2.width / 2, base_y + 42)
-    ctx.show_text(label2)
-
-    # "VS" divider
-    palette.set_color(ctx, palette.GOLD)
-    ctx.select_font_face("sans-serif", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
-    ctx.set_font_size(18)
-    ctx.move_to(mid_x - 12, base_y - 50)
-    ctx.show_text("vs")
+    ctx.set_font_size(10)
+    palette.set_color(ctx, palette.PANEL)
+    note = "less outward\npush"
+    for idx, line in enumerate(note.splitlines()):
+        ext = ctx.text_extents(line)
+        ctx.move_to(342 + (116 - ext.width) / 2, 223 + idx * 13)
+        ctx.show_text(line)
 
     return surface
 
@@ -224,7 +262,7 @@ def render_herringbone() -> cairo.ImageSurface:
         "without centering — temporary wooden scaffolding from below.")
 
     # Draw a zoomed brick grid
-    start_x, start_y = 120, 70
+    start_x, start_y = 120, 126
     brick_w, brick_h = 50, 18
     rows = 18
     cols = 11
@@ -234,7 +272,7 @@ def render_herringbone() -> cairo.ImageSurface:
             x = start_x + col * brick_w + (row % 2) * (brick_w // 2)
             y = start_y + row * brick_h
 
-            if y > 410:
+            if y > 392:
                 continue
             if x > renderer.WIDTH - 40:
                 continue
@@ -277,7 +315,7 @@ def render_herringbone() -> cairo.ImageSurface:
     ctx.set_font_size(11)
     label = "vertical 'spine' bricks lock horizontal courses in place"
     ext = ctx.text_extents(label)
-    ctx.move_to((renderer.WIDTH - ext.width) / 2, 420)
+    ctx.move_to((renderer.WIDTH - ext.width) / 2, 418)
     ctx.show_text(label)
 
     return surface

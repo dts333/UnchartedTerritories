@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Brunelleschi's Dome Explorer</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <p class="eyebrow">Florence, 1420–1436</p>
+        <h1>Brunelleschi's Dome Explorer</h1>
+        <p class="deck">
+          A single still image of the dome with clickable engineering features.
+          Select any hotspot to open the related inset and explanation.
+        </p>
+      </header>
+
+      <main class="layout">
+        <section class="figure-card" aria-labelledby="figure-heading">
+          <div class="figure-header">
+            <h2 id="figure-heading">Construction Overview</h2>
+            <p>Click a hotspot or use the feature buttons below the image.</p>
+          </div>
+
+          <div class="figure-stage">
+            <img id="dome-figure" class="dome-figure" alt="">
+            <div id="hotspots" class="hotspots"></div>
+          </div>
+
+          <div id="topic-list" class="topic-list" aria-label="Engineering features"></div>
+        </section>
+
+        <aside class="detail-card" aria-live="polite">
+          <p id="detail-kicker" class="detail-kicker"></p>
+          <h2 id="detail-title" class="detail-title"></h2>
+          <p id="detail-summary" class="detail-summary"></p>
+
+          <figure class="detail-figure">
+            <img id="detail-image" class="detail-image" alt="">
+            <figcaption id="detail-caption" class="detail-caption"></figcaption>
+          </figure>
+
+          <div id="detail-body" class="detail-body"></div>
+          <div id="detail-facts" class="detail-facts"></div>
+        </aside>
+      </main>
+    </div>
+
+    <script src="data.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

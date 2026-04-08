@@ -1,13 +1,15 @@
-"""Main entry point for Brunelleschi's dome GIF generation.
+"""Main entry point for Brunelleschi's dome project.
 
-Orchestrates frame generation across construction phases and inset details,
-then assembles everything into an animated GIF.
+Still exposes the original frame generation helpers for the animated GIF, but
+the default build now produces a static interactive explorer page with a
+clickable dome overview and separate teaching insets.
 """
 import os
 import cairo
-import imageio.v3 as iio
 import numpy as np
+from PIL import Image
 
+import explorer
 import renderer
 import insets
 
@@ -81,45 +83,42 @@ def generate_frames(limit: int = None) -> list[tuple[cairo.ImageSurface, int]]:
 
 
 def assemble_gif(frames: list[tuple[cairo.ImageSurface, int]], output_path: str):
-    """Assemble frames into an animated GIF."""
-    images = []
-    durations = []
+    """Assemble frames into an animated GIF using Pillow for reliable timing."""
+    pil_frames = []
 
     for surface, delay_ms in frames:
         rgb = _surface_to_numpy(surface)
-        images.append(rgb)
-        durations.append(delay_ms / 1000.0)
+        pil_frames.append((Image.fromarray(rgb), delay_ms))
 
-    iio.imwrite(
+    if not pil_frames:
+        return
+
+    first_img, first_delay = pil_frames[0]
+    # Convert to P mode (palette) for GIF
+    first_gif = first_img.quantize(colors=256, method=Image.Quantize.MEDIANCUT)
+
+    rest_gifs = []
+    rest_durations = []
+    for img, delay in pil_frames[1:]:
+        rest_gifs.append(img.quantize(colors=256, method=Image.Quantize.MEDIANCUT))
+        rest_durations.append(delay)
+
+    first_gif.save(
         output_path,
-        images,
-        extension=".gif",
+        save_all=True,
+        append_images=rest_gifs,
+        duration=[first_delay] + rest_durations,
         loop=0,
-        duration=durations,
+        optimize=False,
     )
 
 
 def main():
-    """Generate all frames and assemble the GIF."""
-    os.makedirs("frames", exist_ok=True)
+    """Build the interactive explorer bundle."""
     os.makedirs("output", exist_ok=True)
-
-    print("Generating frames...")
-    frames = generate_frames()
-    print(f"Generated {len(frames)} frames")
-
-    # Save individual PNGs for debugging
-    for i, (surface, delay) in enumerate(frames):
-        surface.write_to_png(f"frames/frame_{i:03d}.png")
-
-    output_path = "output/brunelleschi_dome.gif"
-    print(f"Assembling GIF: {output_path}")
-    assemble_gif(frames, output_path)
-
-    size_mb = os.path.getsize(output_path) / (1024 * 1024)
-    print(f"Done! {output_path} ({size_mb:.1f} MB)")
-    if size_mb > 15:
-        print("WARNING: File > 15MB. Consider: gifsicle -O3 --lossy=80 -o optimized.gif output/brunelleschi_dome.gif")
+    output_path = explorer.build_interactive_explorer()
+    print(f"Built interactive explorer: {output_path}")
+    print("Open index.html in a browser and click the dome hotspots to switch insets.")
 
 
 if __name__ == "__main__":
