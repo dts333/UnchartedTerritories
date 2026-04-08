@@ -1,0 +1,6 @@
+frames/
+output/
+__pycache__/
+*.pyc
+.superpowers/
+.venv/
