@@ -3,6 +3,7 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from pathlib import Path
+from html.parser import HTMLParser
 
 import explorer
 import renderer
@@ -60,6 +61,22 @@ def test_herringbone_region_wraps_the_outer_shell_band():
     assert band_region["x"] > renderer.DOME_CENTER_X
 
 
+def test_herringbone_highlight_spine_lines_follow_outer_shell_geometry():
+    highlight = _detail("herringbone")["highlight"]
+    assert highlight[0]["type"] == "path"
+
+    for line in highlight[1:]:
+        assert line["type"] == "line"
+        assert float(line["x2"]) > float(line["x1"])
+        assert abs(float(line["y2"]) - float(line["y1"])) > 100
+
+        for x_key, y_key in [("x1", "y1"), ("x2", "y2")]:
+            local_y = renderer.DOME_BASE_Y - float(line[y_key])
+            shell_left, shell_right, _ = explorer._outer_shell_strip(local_y)
+            x = float(line[x_key])
+            assert shell_left <= x <= shell_right
+
+
 def test_chain_regions_are_centered_on_chain_segments():
     chain_detail = _detail("chains")
     for region, segment in zip(chain_detail["regions"], chain_detail["highlight"], strict=True):
@@ -95,6 +112,31 @@ def test_hoist_region_covers_the_visible_hoist_geometry():
         assert _region_contains(hoist_region, *point), f"hoist region misses anchor point {point}"
 
 
+def test_detail_specs_drive_payload_and_assets():
+    details = explorer.build_details()
+
+    assert [detail["id"] for detail in details] == [spec.id for spec in explorer.DETAIL_SPECS]
+    assert [detail["image"] for detail in details] == [
+        f"assets/{spec.image_name}" for spec in explorer.DETAIL_SPECS
+    ]
+    assert [spec.render_fn.__name__ for spec in explorer.DETAIL_SPECS] == [
+        "render_arch_comparison",
+        "render_herringbone",
+        "render_chain_rings",
+        "render_ox_hoist",
+    ]
+
+
+def test_highlight_shapes_use_svg_attribute_names():
+    for detail in explorer.build_details():
+        for shape in detail["highlight"]:
+            if shape["type"] == "rect":
+                assert "w" not in shape
+                assert "h" not in shape
+                assert "width" in shape
+                assert "height" in shape
+
+
 def test_build_interactive_explorer_writes_bundle(tmp_path):
     index_path = explorer.build_interactive_explorer(tmp_path / "interactive")
 
@@ -125,4 +167,27 @@ def test_build_interactive_explorer_writes_bundle(tmp_path):
     )
     assert payload["figureWidth"] == renderer.WIDTH
     assert payload["figureHeight"] == renderer.HEIGHT
-    assert payload["details"][0]["id"] == explorer.DETAILS[0]["id"]
+    assert [detail["id"] for detail in payload["details"]] == [detail["id"] for detail in explorer.build_details()]
+
+
+class _IndexParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.ids = set()
+        self.script_srcs = []
+
+    def handle_starttag(self, tag, attrs):
+        attrs_dict = dict(attrs)
+        if "id" in attrs_dict:
+            self.ids.add(attrs_dict["id"])
+        if tag == "script" and "src" in attrs_dict:
+            self.script_srcs.append(attrs_dict["src"])
+
+
+def test_index_html_contains_expected_app_mounts(tmp_path):
+    index_path = explorer.build_interactive_explorer(tmp_path / "interactive")
+    parser = _IndexParser()
+    parser.feed(index_path.read_text(encoding="utf-8"))
+
+    assert {"dome-figure", "highlight-layer", "hotspots", "topic-list", "detail-image"} <= parser.ids
+    assert parser.script_srcs[-2:] == ["data.js", "app.js"]

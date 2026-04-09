@@ -2,61 +2,24 @@
 
 Each function renders a single teaching inset frame explaining one
 engineering innovation. All insets share the warm palette and a common
-layout: DETAIL header, diagram area (upper 2/3), explanation text box
-(lower 1/3), footer.
+layout: diagram area above an explanation text box.
 """
 import math
 import cairo
+from drawing_utils import draw_wrapped_text, rounded_rect
 import palette
 import renderer
 import geometry
-
-
-def _rounded_rect(ctx: cairo.Context, x: float, y: float, w: float, h: float, r: float):
-    """Create a rounded rectangle path."""
-    r = min(r, w / 2, h / 2)
-    ctx.new_sub_path()
-    ctx.arc(x + w - r, y + r, r, -1.5708, 0)
-    ctx.arc(x + w - r, y + h - r, r, 0, 1.5708)
-    ctx.arc(x + r, y + h - r, r, 1.5708, 3.14159)
-    ctx.arc(x + r, y + r, r, 3.14159, 4.71239)
-    ctx.close_path()
 
 
 def _draw_inset_template(ctx: cairo.Context, title: str, explanation: str):
     """Draw the shared inset frame template."""
     renderer.draw_background(ctx)
 
-    # Header
-    header_x, header_y = 34, 24
-    header_w, header_h = renderer.WIDTH - 68, 60
-    _rounded_rect(ctx, header_x, header_y, header_w, header_h, 16)
-    palette.set_color_alpha(ctx, palette.PANEL, 0.92)
-    ctx.fill_preserve()
-    palette.set_color_alpha(ctx, palette.GOLD, 0.65)
-    ctx.set_line_width(1.2)
-    ctx.stroke()
-
-    ctx.select_font_face("serif", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
-    ctx.set_font_size(23)
-    palette.set_color(ctx, palette.TEXT)
-    header_text = title
-    extents = ctx.text_extents(header_text)
-    ctx.move_to((renderer.WIDTH - extents.width) / 2, header_y + 26)
-    ctx.show_text(header_text)
-
-    ctx.select_font_face("sans-serif", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
-    ctx.set_font_size(10)
-    palette.set_color(ctx, palette.GOLD)
-    badge = "DETAIL CARD"
-    badge_extents = ctx.text_extents(badge)
-    ctx.move_to((renderer.WIDTH - badge_extents.width) / 2, header_y + 44)
-    ctx.show_text(badge)
-
     # Diagram panel
-    panel_x, panel_y = 52, 100
-    panel_w, panel_h = renderer.WIDTH - 104, 298
-    _rounded_rect(ctx, panel_x, panel_y, panel_w, panel_h, 24)
+    panel_x, panel_y = 38, 28
+    panel_w, panel_h = renderer.WIDTH - 76, 372
+    rounded_rect(ctx, panel_x, panel_y, panel_w, panel_h, 26)
     palette.set_color_alpha(ctx, palette.PANEL_ALT, 0.62)
     ctx.fill_preserve()
     palette.set_color_alpha(ctx, palette.GOLD, 0.26)
@@ -64,9 +27,9 @@ def _draw_inset_template(ctx: cairo.Context, title: str, explanation: str):
     ctx.stroke()
 
     # Explanation box
-    box_x, box_y = 60, 422
-    box_w, box_h = renderer.WIDTH - 120, 132
-    _rounded_rect(ctx, box_x, box_y, box_w, box_h, 18)
+    box_x, box_y = 44, 418
+    box_w, box_h = renderer.WIDTH - 88, 144
+    rounded_rect(ctx, box_x, box_y, box_w, box_h, 18)
     palette.set_color_alpha(ctx, palette.ANNOTATION_BG, 0.96)
     ctx.fill_preserve()
     palette.set_color_alpha(ctx, palette.GOLD, 0.78)
@@ -75,36 +38,15 @@ def _draw_inset_template(ctx: cairo.Context, title: str, explanation: str):
 
     # Wrapped explanation text
     ctx.select_font_face("sans-serif", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
-    ctx.set_font_size(13)
+    ctx.set_font_size(14)
     palette.set_color(ctx, palette.TEXT)
-    _draw_wrapped_text(ctx, explanation, box_x + 18, box_y + 42, box_w - 36, line_height=20)
+    draw_wrapped_text(ctx, explanation, box_x + 18, box_y + 44, box_w - 36, line_height=21)
 
     ctx.select_font_face("sans-serif", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
     ctx.set_font_size(10)
     palette.set_color(ctx, palette.GOLD)
     ctx.move_to(box_x + 18, box_y + 22)
     ctx.show_text("ENGINEERING IDEA")
-
-
-def _draw_wrapped_text(ctx: cairo.Context, text: str, x: float, y: float,
-                        max_width: float, line_height: float = 18):
-    """Draw text with simple word-wrapping."""
-    words = text.split()
-    line = ""
-    cy = y
-    for word in words:
-        test = f"{line} {word}".strip()
-        extents = ctx.text_extents(test)
-        if extents.width > max_width and line:
-            ctx.move_to(x, cy)
-            ctx.show_text(line)
-            line = word
-            cy += line_height
-        else:
-            line = test
-    if line:
-        ctx.move_to(x, cy)
-        ctx.show_text(line)
 
 
 def render_arch_comparison() -> cairo.ImageSurface:
@@ -131,7 +73,7 @@ def render_arch_comparison() -> cairo.ImageSurface:
     ]
 
     for x, label, force_label, verdict, arch_color in cards:
-        _rounded_rect(ctx, x, card_y, card_w, card_h, 22)
+        rounded_rect(ctx, x, card_y, card_w, card_h, 22)
         palette.set_color_alpha(ctx, palette.PANEL, 0.74)
         ctx.fill_preserve()
         palette.set_color_alpha(ctx, palette.GOLD, 0.24)
@@ -225,7 +167,7 @@ def render_arch_comparison() -> cairo.ImageSurface:
         ctx.show_text(verdict)
 
     palette.set_color_alpha(ctx, palette.GOLD, 0.85)
-    _rounded_rect(ctx, 342, 204, 116, 50, 16)
+    rounded_rect(ctx, 342, 204, 116, 50, 16)
     ctx.fill_preserve()
     palette.set_color_alpha(ctx, palette.PANEL, 0.9)
     ctx.set_line_width(1)

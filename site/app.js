@@ -26,11 +26,43 @@
   const hotspotButtons = new Map();
   const topicButtons = new Map();
   const highlightGroups = new Map();
+  const svgAttributeMap = new Map([
+    ["cx", "cx"],
+    ["cy", "cy"],
+    ["d", "d"],
+    ["fill", "fill"],
+    ["height", "height"],
+    ["h", "height"],
+    ["r", "r"],
+    ["rx", "rx"],
+    ["ry", "ry"],
+    ["stroke", "stroke"],
+    ["strokeLinecap", "stroke-linecap"],
+    ["strokeLinejoin", "stroke-linejoin"],
+    ["strokeWidth", "stroke-width"],
+    ["width", "width"],
+    ["w", "width"],
+    ["x", "x"],
+    ["x1", "x1"],
+    ["x2", "x2"],
+    ["y", "y"],
+    ["y1", "y1"],
+    ["y2", "y2"],
+  ]);
   let activeId = data.details[0].id;
   let hoveredId = null;
 
   function createSvgElement(tagName) {
     return document.createElementNS("http://www.w3.org/2000/svg", tagName);
+  }
+
+  function applySvgShapeAttributes(element, shape) {
+    Object.entries(shape).forEach(([key, value]) => {
+      const attributeName = svgAttributeMap.get(key);
+      if (key !== "type" && attributeName) {
+        element.setAttribute(attributeName, String(value));
+      }
+    });
   }
 
   function applyHighlightState() {
@@ -91,11 +123,7 @@
 
     detail.highlight.forEach((shape) => {
       const element = createSvgElement(shape.type);
-      Object.entries(shape).forEach(([key, value]) => {
-        if (key !== "type") {
-          element.setAttribute(key, String(value));
-        }
-      });
+      applySvgShapeAttributes(element, shape);
       group.appendChild(element);
     });
 
@@ -112,7 +140,12 @@
       hotspot.style.width = `${(region.w / figureWidth) * 100}%`;
       hotspot.style.height = `${(region.h / figureHeight) * 100}%`;
       hotspot.setAttribute("aria-label", detail.hotspot_label);
-      hotspot.innerHTML = index === 0 ? `<span class="hotspot-label">${detail.label}</span>` : "";
+      if (index === 0) {
+        const label = document.createElement("span");
+        label.className = "hotspot-label";
+        label.textContent = detail.label;
+        hotspot.appendChild(label);
+      }
       hotspot.addEventListener("mouseenter", () => {
         hoveredId = detail.id;
         applyHighlightState();
@@ -139,10 +172,13 @@
     topicButton.type = "button";
     topicButton.className = "topic-button";
     topicButton.setAttribute("aria-pressed", "false");
-    topicButton.innerHTML = `
-      <span class="topic-label">${detail.label}</span>
-      <span class="topic-copy">${detail.summary}</span>
-    `;
+    const topicLabel = document.createElement("span");
+    topicLabel.className = "topic-label";
+    topicLabel.textContent = detail.label;
+    const topicCopy = document.createElement("span");
+    topicCopy.className = "topic-copy";
+    topicCopy.textContent = detail.summary;
+    topicButton.append(topicLabel, topicCopy);
     topicButton.addEventListener("mouseenter", () => {
       hoveredId = detail.id;
       applyHighlightState();

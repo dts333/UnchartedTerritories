@@ -6,6 +6,7 @@ cutaway right), and annotation bar.
 import math
 import cairo
 
+from drawing_utils import draw_wrapped_text, rounded_rect
 import geometry
 import palette
 
@@ -67,58 +68,6 @@ def create_surface() -> cairo.ImageSurface:
     return cairo.ImageSurface(cairo.FORMAT_ARGB32, WIDTH, HEIGHT)
 
 
-def _rounded_rect(ctx: cairo.Context, x: float, y: float, w: float, h: float, r: float):
-    """Create a rounded rectangle path."""
-    r = min(r, w / 2, h / 2)
-    ctx.new_sub_path()
-    ctx.arc(x + w - r, y + r, r, -1.5708, 0)
-    ctx.arc(x + w - r, y + h - r, r, 0, 1.5708)
-    ctx.arc(x + r, y + h - r, r, 1.5708, 3.14159)
-    ctx.arc(x + r, y + r, r, 3.14159, 4.71239)
-    ctx.close_path()
-
-
-def _wrap_text(ctx: cairo.Context, text: str, max_width: float) -> list[str]:
-    """Wrap text to fit inside a fixed width."""
-    words = text.split()
-    lines = []
-    current = ""
-    for word in words:
-        candidate = f"{current} {word}".strip()
-        if current and ctx.text_extents(candidate).width > max_width:
-            lines.append(current)
-            current = word
-        else:
-            current = candidate
-    if current:
-        lines.append(current)
-    return lines
-
-
-def _draw_wrapped_text(
-    ctx: cairo.Context,
-    text: str,
-    x: float,
-    y: float,
-    max_width: float,
-    line_height: float,
-    max_lines: int | None = None,
-):
-    """Draw wrapped text with optional line limiting."""
-    lines = _wrap_text(ctx, text, max_width)
-    if max_lines and len(lines) > max_lines:
-        lines = lines[:max_lines]
-        if lines:
-            last = lines[-1].rstrip(".")
-            while ctx.text_extents(f"{last}...").width > max_width and last:
-                last = last[:-1]
-            lines[-1] = f"{last}..."
-
-    for idx, line in enumerate(lines):
-        ctx.move_to(x, y + idx * line_height)
-        ctx.show_text(line)
-
-
 def draw_background(ctx: cairo.Context):
     """Fill the canvas with a painted dusk backdrop and Florence silhouette."""
     sky = cairo.LinearGradient(0, 0, 0, HEIGHT)
@@ -152,7 +101,7 @@ def draw_title_bar(ctx: cairo.Context, title: str):
     panel_w = WIDTH - 68
     panel_h = 58
 
-    _rounded_rect(ctx, panel_x, panel_y, panel_w, panel_h, 16)
+    rounded_rect(ctx, panel_x, panel_y, panel_w, panel_h, 16)
     palette.set_color_alpha(ctx, palette.PANEL, 0.9)
     ctx.fill_preserve()
     palette.set_color_alpha(ctx, palette.GOLD, 0.55)
@@ -182,7 +131,7 @@ def draw_annotation_bar(ctx: cairo.Context, text: str):
     box_w = WIDTH - 172
     box_h = 68
 
-    _rounded_rect(ctx, box_x, box_y, box_w, box_h, 18)
+    rounded_rect(ctx, box_x, box_y, box_w, box_h, 18)
     palette.set_color_alpha(ctx, palette.ANNOTATION_BG, 0.95)
     ctx.fill_preserve()
     palette.set_color_alpha(ctx, palette.GOLD, 0.8)
@@ -198,13 +147,13 @@ def draw_annotation_bar(ctx: cairo.Context, text: str):
     ctx.select_font_face("sans-serif", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
     ctx.set_font_size(13)
     palette.set_color(ctx, palette.TEXT)
-    _draw_wrapped_text(ctx, text, box_x + 18, box_y + 40, box_w - 36, 18, max_lines=2)
+    draw_wrapped_text(ctx, text, box_x + 18, box_y + 40, box_w - 36, 18, max_lines=2)
 
 
 def draw_split_labels(ctx: cairo.Context):
     """Draw side badges for the exterior and cutaway views."""
     for x, text in [(54, "EXTERIOR VIEW"), (WIDTH - 214, "CUTAWAY VIEW")]:
-        _rounded_rect(ctx, x, 95, 160, 28, 14)
+        rounded_rect(ctx, x, 95, 160, 28, 14)
         palette.set_color_alpha(ctx, palette.PANEL_ALT, 0.82)
         ctx.fill_preserve()
         palette.set_color_alpha(ctx, palette.GOLD, 0.7)
@@ -782,13 +731,13 @@ def render_explorer_figure() -> cairo.ImageSurface:
     draw_background(ctx)
 
     palette.set_color_alpha(ctx, palette.PANEL, 0.62)
-    _rounded_rect(ctx, 30, 28, WIDTH - 60, HEIGHT - 70, 28)
+    rounded_rect(ctx, 30, 28, WIDTH - 60, HEIGHT - 70, 28)
     ctx.fill_preserve()
     palette.set_color_alpha(ctx, palette.GOLD, 0.24)
     ctx.set_line_width(1.4)
     ctx.stroke()
 
-    _rounded_rect(ctx, 48, 46, 178, 30, 15)
+    rounded_rect(ctx, 48, 46, 178, 30, 15)
     palette.set_color_alpha(ctx, palette.PANEL_ALT, 0.84)
     ctx.fill_preserve()
     palette.set_color_alpha(ctx, palette.GOLD, 0.68)
@@ -857,7 +806,7 @@ def render_construction_frame(progress: float, phase: int) -> cairo.ImageSurface
         draw_lantern(ctx, lantern_progress)
 
     if phase == 12:
-        _rounded_rect(ctx, WIDTH - 206, 138, 142, 34, 17)
+        rounded_rect(ctx, WIDTH - 206, 138, 142, 34, 17)
         palette.set_color_alpha(ctx, palette.PANEL_ALT, 0.88)
         ctx.fill_preserve()
         palette.set_color_alpha(ctx, palette.GOLD, 0.7)

@@ -1,7 +1,9 @@
 """Build a static interactive dome explorer site."""
 import json
 import shutil
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
 import geometry
 import insets
@@ -72,6 +74,15 @@ def _outer_shell_band(y_top: float, y_bottom: float, steps: int = 48) -> list[tu
         outer_edge.append((CENTER_X + x_right, screen_y))
         inner_edge.append((CENTER_X + x_right - OUTER_THICKNESS, screen_y))
     return outer_edge + list(reversed(inner_edge))
+
+
+def _outer_shell_strip(y: float) -> tuple[float, float, float]:
+    """Return screen-space left/right x bounds for the outer shell at a height."""
+    _, x_right = geometry.dome_profile_at_height(y, RADIUS)
+    screen_y = BASE_Y - y
+    outer_right = CENTER_X + x_right
+    outer_left = outer_right - OUTER_THICKNESS
+    return (outer_left, outer_right, screen_y)
 
 
 def _chain_segments() -> list[dict]:
@@ -168,6 +179,26 @@ def _arch_highlight() -> list[dict]:
 def _herringbone_highlight() -> list[dict]:
     """Build highlight geometry for the visible outer-shell brick band."""
     band = _outer_shell_band(72, 232)
+    spine_lines = []
+    for lower_y, upper_y, lower_frac, upper_frac, alpha in [
+        (228, 88, 0.22, 0.82, 0.72),
+        (244, 102, 0.34, 0.94, 0.58),
+    ]:
+        lower_left, _, lower_screen_y = _outer_shell_strip(lower_y)
+        upper_left, _, upper_screen_y = _outer_shell_strip(upper_y)
+        spine_lines.append(
+            {
+                "type": "line",
+                "x1": round(lower_left + (OUTER_THICKNESS * lower_frac), 1),
+                "y1": round(lower_screen_y, 1),
+                "x2": round(upper_left + (OUTER_THICKNESS * upper_frac), 1),
+                "y2": round(upper_screen_y, 1),
+                "stroke": f"rgba(255, 230, 176, {alpha})",
+                "strokeWidth": 3,
+                "strokeLinecap": "round",
+            }
+        )
+
     return [
         {
             "type": "path",
@@ -177,26 +208,7 @@ def _herringbone_highlight() -> list[dict]:
             "strokeWidth": 4,
             "strokeLinejoin": "round",
         },
-        {
-            "type": "line",
-            "x1": 457,
-            "y1": 408,
-            "x2": 520,
-            "y2": 274,
-            "stroke": "rgba(255, 230, 176, 0.72)",
-            "strokeWidth": 3,
-            "strokeLinecap": "round",
-        },
-        {
-            "type": "line",
-            "x1": 472,
-            "y1": 424,
-            "x2": 537,
-            "y2": 289,
-            "stroke": "rgba(255, 230, 176, 0.58)",
-            "strokeWidth": 3,
-            "strokeLinecap": "round",
-        },
+        *spine_lines,
     ]
 
 
@@ -301,8 +313,8 @@ def _hoist_highlight() -> list[dict]:
             "type": "rect",
             "x": pulley_x - (renderer.HOIST_CRATE_WIDTH / 2),
             "y": pulley_y + renderer.HOIST_CRATE_DROP,
-            "w": renderer.HOIST_CRATE_WIDTH,
-            "h": renderer.HOIST_CRATE_HEIGHT,
+            "width": renderer.HOIST_CRATE_WIDTH,
+            "height": renderer.HOIST_CRATE_HEIGHT,
             "rx": 4,
             "fill": "rgba(207, 114, 66, 0.22)",
             "stroke": "rgba(255, 215, 121, 0.9)",
@@ -312,8 +324,8 @@ def _hoist_highlight() -> list[dict]:
             "type": "rect",
             "x": renderer.HOIST_OX_X - (renderer.HOIST_OX_WIDTH / 2),
             "y": ox_y - renderer.HOIST_OX_TOP_OFFSET,
-            "w": renderer.HOIST_OX_WIDTH,
-            "h": renderer.HOIST_OX_HEIGHT,
+            "width": renderer.HOIST_OX_WIDTH,
+            "height": renderer.HOIST_OX_HEIGHT,
             "rx": 4,
             "fill": "rgba(212, 197, 169, 0.14)",
             "stroke": "rgba(255, 225, 167, 0.76)",
@@ -321,88 +333,135 @@ def _hoist_highlight() -> list[dict]:
         },
     ]
 
-DETAILS = [
-    {
-        "id": "arch",
-        "label": "Pointed arch",
-        "hotspot_label": "Pointed-fifth arch profile",
-        "title": "Pointed-Fifth Arch",
-        "kicker": "Geometry",
-        "summary": "The pointed profile sends more load down into the drum and less force sideways.",
-        "caption": "A side-by-side comparison of the round arch and Brunelleschi's steeper pointed-fifth profile.",
-        "body": [
+@dataclass(frozen=True)
+class DetailSpec:
+    """Single source of truth for explorer content and generated assets."""
+
+    id: str
+    label: str
+    hotspot_label: str
+    title: str
+    kicker: str
+    summary: str
+    caption: str
+    body: list[str]
+    facts: list[str]
+    image_name: str
+    render_fn: Callable[[], object]
+    regions_fn: Callable[[], list[dict]]
+    highlight_fn: Callable[[], list[dict]]
+
+    def build_detail(self) -> dict:
+        return {
+            "id": self.id,
+            "label": self.label,
+            "hotspot_label": self.hotspot_label,
+            "title": self.title,
+            "kicker": self.kicker,
+            "summary": self.summary,
+            "caption": self.caption,
+            "body": self.body,
+            "facts": self.facts,
+            "regions": self.regions_fn(),
+            "highlight": self.highlight_fn(),
+            "image": f"assets/{self.image_name}",
+        }
+
+
+DETAIL_SPECS = [
+    DetailSpec(
+        id="arch",
+        label="Pointed arch",
+        hotspot_label="Pointed-fifth arch profile",
+        title="Pointed-Fifth Arch",
+        kicker="Geometry",
+        summary="The pointed profile sends more load down into the drum and less force sideways.",
+        caption="A side-by-side comparison of the round arch and Brunelleschi's steeper pointed-fifth profile.",
+        body=[
             "A semicircular dome behaves like a wide arch: it pushes strongly outward at the base and usually needs heavy timber centering while it is being built.",
             "Brunelleschi's pointed-fifth curve is taller and steeper. That geometry redirects more of the masonry load downward, which helped each ring of bricks stabilize itself as construction rose.",
         ],
-        "facts": [
+        facts=[
             "The arc centers sit at four-fifths of the span from the opposite side.",
             "Less lateral thrust meant less dependence on giant temporary scaffolding.",
         ],
-        "regions": [_arch_region()],
-        "highlight": _arch_highlight(),
-        "image": "assets/pointed-fifth-arch.png",
-    },
-    {
-        "id": "herringbone",
-        "label": "Herringbone brickwork",
-        "hotspot_label": "Herringbone brickwork on the outer shell",
-        "title": "Herringbone Brickwork",
-        "kicker": "Masonry technique",
-        "summary": "Vertical spine bricks lock the horizontal courses so wet masonry does not slip while the shell climbs.",
-        "caption": "Mostly horizontal bricks are interrupted by upright 'spine' bricks that act like teeth in the wall.",
-        "body": [
+        image_name="pointed-fifth-arch.png",
+        render_fn=insets.render_arch_comparison,
+        regions_fn=lambda: [_arch_region()],
+        highlight_fn=_arch_highlight,
+    ),
+    DetailSpec(
+        id="herringbone",
+        label="Herringbone brickwork",
+        hotspot_label="Herringbone brickwork on the outer shell",
+        title="Herringbone Brickwork",
+        kicker="Masonry technique",
+        summary="Vertical spine bricks lock the horizontal courses so wet masonry does not slip while the shell climbs.",
+        caption="Mostly horizontal bricks are interrupted by upright 'spine' bricks that act like teeth in the wall.",
+        body=[
             "The dome was not laid as simple horizontal bands. Brunelleschi inserted vertical bricks at intervals so each fresh course caught against the course below.",
             "That pattern let masons keep building upward without waiting for an enormous full wooden support structure beneath the entire dome.",
         ],
-        "facts": [
+        facts=[
             "The pattern is visible on the exterior-facing shell.",
             "It helped turn construction from a precarious stack into a controlled climbing system.",
         ],
-        "regions": [_herringbone_region()],
-        "highlight": _herringbone_highlight(),
-        "image": "assets/herringbone-brickwork.png",
-    },
-    {
-        "id": "chains",
-        "label": "Chain rings",
-        "hotspot_label": "Chain rings embedded in the cutaway shell",
-        "title": "Chain Rings",
-        "kicker": "Structural restraint",
-        "summary": "Stone, iron, and timber chains act like hoops on a barrel, holding the dome against outward thrust.",
-        "caption": "The cutaway reveals the continuous tension bands tied into the masonry at intervals.",
-        "body": [
+        image_name="herringbone-brickwork.png",
+        render_fn=insets.render_herringbone,
+        regions_fn=lambda: [_herringbone_region()],
+        highlight_fn=_herringbone_highlight,
+    ),
+    DetailSpec(
+        id="chains",
+        label="Chain rings",
+        hotspot_label="Chain rings embedded in the cutaway shell",
+        title="Chain Rings",
+        kicker="Structural restraint",
+        summary="Stone, iron, and timber chains act like hoops on a barrel, holding the dome against outward thrust.",
+        caption="The cutaway reveals the continuous tension bands tied into the masonry at intervals.",
+        body=[
             "Brunelleschi embedded horizontal chain rings through the dome to resist the tendency of the walls to spread outward under their own weight.",
             "These bands worked together with the ribs and the double-shell form so the structure behaved like a self-bracing system rather than a dome waiting to collapse until the top closed.",
         ],
-        "facts": [
+        facts=[
             "The major chain bands sit at multiple levels through the dome.",
             "They combine stone links, iron connectors, and timber elements.",
         ],
-        "regions": _chain_regions(),
-        "highlight": _chain_segments(),
-        "image": "assets/chain-rings.png",
-    },
-    {
-        "id": "hoist",
-        "label": "Ox-hoist crane",
-        "hotspot_label": "Reversible ox-hoist crane beside the dome",
-        "title": "Ox-Hoist Crane",
-        "kicker": "Construction logistics",
-        "summary": "A reversible hoist let workers raise huge loads without turning the oxen around each time.",
-        "caption": "The hoist translates circular animal power into controlled lifting through Brunelleschi's gearing.",
-        "body": [
+        image_name="chain-rings.png",
+        render_fn=insets.render_chain_rings,
+        regions_fn=_chain_regions,
+        highlight_fn=_chain_segments,
+    ),
+    DetailSpec(
+        id="hoist",
+        label="Ox-hoist crane",
+        hotspot_label="Reversible ox-hoist crane beside the dome",
+        title="Ox-Hoist Crane",
+        kicker="Construction logistics",
+        summary="A reversible hoist let workers raise huge loads without turning the oxen around each time.",
+        caption="The hoist translates circular animal power into controlled lifting through Brunelleschi's gearing.",
+        body=[
             "Brunelleschi did not just solve geometry. He also designed new machinery to get stone, brick, and timber to the top of the structure.",
             "The reversible gear train meant the oxen could keep walking the same way while the lift direction changed, a major practical advantage on a project of this scale.",
         ],
-        "facts": [
+        facts=[
             "The crane reduced wasted time at every lift cycle.",
             "Engineering innovation on the site mattered as much as the dome's final shape.",
         ],
-        "regions": [_hoist_region()],
-        "highlight": _hoist_highlight(),
-        "image": "assets/ox-hoist-crane.png",
-    },
+        image_name="ox-hoist-crane.png",
+        render_fn=insets.render_ox_hoist,
+        regions_fn=lambda: [_hoist_region()],
+        highlight_fn=_hoist_highlight,
+    ),
 ]
+
+
+def build_details() -> list[dict]:
+    """Return the explorer detail payload from the current geometry."""
+    return [spec.build_detail() for spec in DETAIL_SPECS]
+
+
+DETAILS = build_details()
 
 
 def _write_text(path: Path, content: str):
@@ -417,11 +476,11 @@ def build_interactive_explorer(output_dir: str = "output/interactive") -> Path:
     assets_dir = out_dir / "assets"
     assets_dir.mkdir(parents=True, exist_ok=True)
 
+    details = build_details()
+
     renderer.render_explorer_figure().write_to_png(str(assets_dir / "brunelleschi-dome-explorer.png"))
-    insets.render_arch_comparison().write_to_png(str(assets_dir / "pointed-fifth-arch.png"))
-    insets.render_herringbone().write_to_png(str(assets_dir / "herringbone-brickwork.png"))
-    insets.render_chain_rings().write_to_png(str(assets_dir / "chain-rings.png"))
-    insets.render_ox_hoist().write_to_png(str(assets_dir / "ox-hoist-crane.png"))
+    for spec in DETAIL_SPECS:
+        spec.render_fn().write_to_png(str(assets_dir / spec.image_name))
 
     for filename in ["index.html", "styles.css", "app.js"]:
         shutil.copy2(SITE_DIR / filename, out_dir / filename)
@@ -434,7 +493,7 @@ def build_interactive_explorer(output_dir: str = "output/interactive") -> Path:
         ),
         "figureWidth": FIGURE_WIDTH,
         "figureHeight": FIGURE_HEIGHT,
-        "details": DETAILS,
+        "details": details,
     }
     data_js = f"window.DOME_EXPLORER = {json.dumps(data, indent=2)};\n"
     _write_text(out_dir / "data.js", data_js)
