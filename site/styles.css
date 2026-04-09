@@ -114,6 +114,7 @@ body::before {
 
 .figure-header h2 {
   font-size: 1.55rem;
+  white-space: nowrap;
 }
 
 .figure-header p {
