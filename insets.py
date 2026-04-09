@@ -105,54 +105,58 @@ def render_arch_comparison() -> cairo.ImageSurface:
         ctx.set_line_width(4)
 
         if "Semicircular" in label:
-            ctx.arc(center_x, base_y, arch_radius, math.pi, 0)
+            local_base_y = base_y
+            local_radius = arch_radius
+            ctx.arc(center_x, local_base_y, local_radius, math.pi, 0)
             ctx.stroke()
             ctx.set_line_width(2)
-            ctx.move_to(center_x - arch_radius, base_y)
-            ctx.line_to(center_x + arch_radius, base_y)
+            ctx.move_to(center_x - local_radius, local_base_y)
+            ctx.line_to(center_x + local_radius, local_base_y)
             ctx.stroke()
 
             palette.set_color_alpha(ctx, palette.GOLD, 0.75)
             ctx.set_line_width(2)
             for dx in [-1, 1]:
-                ax = center_x + dx * (arch_radius - 8)
-                ctx.move_to(ax, base_y - 10)
-                ctx.line_to(ax + dx * 34, base_y - 10)
-                ctx.line_to(ax + dx * 26, base_y - 16)
-                ctx.move_to(ax + dx * 34, base_y - 10)
-                ctx.line_to(ax + dx * 26, base_y - 4)
+                ax = center_x + dx * (local_radius - 8)
+                ctx.move_to(ax, local_base_y - 10)
+                ctx.line_to(ax + dx * 34, local_base_y - 10)
+                ctx.line_to(ax + dx * 26, local_base_y - 16)
+                ctx.move_to(ax + dx * 34, local_base_y - 10)
+                ctx.line_to(ax + dx * 26, local_base_y - 4)
                 ctx.stroke()
 
             palette.set_color_alpha(ctx, palette.STONE_SHADOW, 0.45)
             ctx.set_dash([4, 4])
             for idx in range(-3, 4):
                 sx = center_x + idx * 24
-                ctx.move_to(sx, base_y)
-                ctx.line_to(sx, base_y - arch_radius + abs(idx) * 11)
+                ctx.move_to(sx, local_base_y)
+                ctx.line_to(sx, local_base_y - local_radius + abs(idx) * 11)
                 ctx.stroke()
             ctx.set_dash([])
         else:
+            local_base_y = base_y + 12
+            local_radius = arch_radius - 6
             points = []
             for i in range(81):
                 t = i / 80.0
-                px, py = geometry.dome_profile(t, arch_radius)
-                points.append((center_x + px, base_y - py))
+                px, py = geometry.dome_profile(t, local_radius)
+                points.append((center_x + px, local_base_y - py))
             ctx.move_to(*points[0])
             for point in points[1:]:
                 ctx.line_to(*point)
             ctx.stroke()
             ctx.set_line_width(2)
-            ctx.move_to(center_x - arch_radius, base_y)
-            ctx.line_to(center_x + arch_radius, base_y)
+            ctx.move_to(center_x - local_radius, local_base_y)
+            ctx.line_to(center_x + local_radius, local_base_y)
             ctx.stroke()
 
             palette.set_color_alpha(ctx, palette.GOLD, 0.75)
             ctx.set_line_width(2)
             for dx in [-1, 1]:
-                ax = center_x + dx * (arch_radius - 4)
+                ax = center_x + dx * (local_radius - 4)
                 end_x = ax + dx * 10
-                end_y = base_y + 36
-                ctx.move_to(ax, base_y - 8)
+                end_y = local_base_y + 34
+                ctx.move_to(ax, local_base_y - 8)
                 ctx.line_to(end_x, end_y)
                 ctx.line_to(end_x - 5, end_y - 8)
                 ctx.move_to(end_x, end_y)
@@ -161,8 +165,8 @@ def render_arch_comparison() -> cairo.ImageSurface:
 
             palette.set_color_alpha(ctx, palette.TEXT_MUTED, 0.55)
             ctx.set_line_width(1)
-            ctx.move_to(center_x, base_y - arch_radius - 30)
-            ctx.line_to(center_x, base_y + 6)
+            ctx.move_to(center_x, local_base_y - local_radius - 26)
+            ctx.line_to(center_x, local_base_y + 6)
             ctx.stroke()
 
         ctx.select_font_face("sans-serif", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
