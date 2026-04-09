@@ -1,3 +1,4 @@
+import json
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
@@ -118,3 +119,10 @@ def test_build_interactive_explorer_writes_bundle(tmp_path):
     data_js = (index_path.parent / "data.js").read_text(encoding="utf-8")
     assert "window.DOME_EXPLORER" in data_js
     assert "Pointed-Fifth Arch" in data_js
+
+    payload = json.loads(
+        data_js.removeprefix("window.DOME_EXPLORER = ").removesuffix(";\n")
+    )
+    assert payload["figureWidth"] == renderer.WIDTH
+    assert payload["figureHeight"] == renderer.HEIGHT
+    assert payload["details"][0]["id"] == explorer.DETAILS[0]["id"]

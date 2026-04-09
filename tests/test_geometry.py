@@ -49,6 +49,16 @@ def test_dome_profile_at_height():
     assert x_left_mid > -100, "Dome should narrow above base"
 
 
+def test_dome_profile_at_height_clamps_outside_visible_profile():
+    """Heights outside the dome profile should clamp to valid intersections."""
+    radius = 100
+    _, apex_y = geometry.dome_profile(0.5, radius)
+
+    assert geometry.dome_profile_at_height(-10, radius) == (-radius, radius)
+    assert geometry.dome_profile_at_height(apex_y, radius) == (0.0, 0.0)
+    assert geometry.dome_profile_at_height(apex_y + 10, radius) == (0.0, 0.0)
+
+
 def test_octagon_points():
     """Should return 8 points on a circle of given radius."""
     points = geometry.octagon_points(100)

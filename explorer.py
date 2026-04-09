@@ -1,6 +1,5 @@
 """Build a static interactive dome explorer site."""
 import json
-import math
 import shutil
 from pathlib import Path
 
@@ -12,6 +11,8 @@ SITE_DIR = Path(__file__).parent / "site"
 RADIUS = renderer.DOME_BASE_RADIUS
 CENTER_X = renderer.DOME_CENTER_X
 BASE_Y = renderer.DOME_BASE_Y
+FIGURE_WIDTH = renderer.WIDTH
+FIGURE_HEIGHT = renderer.HEIGHT
 MAX_HEIGHT = geometry.dome_profile(0.5, RADIUS)[1]
 OUTER_THICKNESS = RADIUS * 0.12
 INNER_THICKNESS = RADIUS * 0.16
@@ -431,6 +432,8 @@ def build_interactive_explorer(output_dir: str = "output/interactive") -> Path:
             "Static cutaway view of Brunelleschi's dome with a completed exterior, structural cutaway, "
             "and ox-hoist crane beside it."
         ),
+        "figureWidth": FIGURE_WIDTH,
+        "figureHeight": FIGURE_HEIGHT,
         "details": DETAILS,
     }
     data_js = f"window.DOME_EXPLORER = {json.dumps(data, indent=2)};\n"

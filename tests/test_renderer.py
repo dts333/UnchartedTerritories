@@ -67,6 +67,27 @@ def test_lantern_stack_is_centered_on_the_dome_axis():
     assert renderer.LANTERN_CROSS_HEIGHT > 0
 
 
+def test_lantern_base_corners_touch_the_dome_profile():
+    """The seated lantern base should meet the dome edges at its bottom corners."""
+    seat_height = renderer._get_dome_height_for_half_width(renderer.LANTERN_SHAFT_HALF_WIDTH)
+    x_left, x_right = geometry.dome_profile_at_height(seat_height, renderer.DOME_BASE_RADIUS)
+
+    assert abs(x_left + renderer.LANTERN_SHAFT_HALF_WIDTH) < 0.1
+    assert abs(x_right - renderer.LANTERN_SHAFT_HALF_WIDTH) < 0.1
+
+
+def test_hoist_ox_sits_on_the_scene_ground_line():
+    """The ox should rest on the scene ground instead of floating above it."""
+    beam_end_y = renderer.HOIST_MAST_BOTTOM - 8
+    ox_y = beam_end_y - renderer.HOIST_OX_BASELINE_OFFSET_Y
+    ox_bottom = ox_y - renderer.HOIST_OX_TOP_OFFSET + renderer.HOIST_OX_HEIGHT
+    podium_bottom = renderer.DOME_BASE_Y + renderer.PODIUM_TOP_OFFSET + renderer.PODIUM_HEIGHT
+
+    assert renderer.HOIST_MAST_TOP == renderer.HOIST_MAST_BOTTOM - renderer.HOIST_MAST_HEIGHT
+    assert renderer.HOIST_GROUND_Y == podium_bottom
+    assert abs(ox_bottom - renderer.HOIST_GROUND_Y) < 0.1
+
+
 def test_render_explorer_figure_uses_flat_drum_profile(monkeypatch):
     """The static explorer should omit the raised drum sidewalls."""
     captured = []

@@ -85,14 +85,6 @@ def _draw_inset_template(ctx: cairo.Context, title: str, explanation: str):
     ctx.move_to(box_x + 18, box_y + 22)
     ctx.show_text("ENGINEERING IDEA")
 
-    # Footer
-    ctx.set_font_size(10)
-    palette.set_color(ctx, palette.TEXT_MUTED)
-    footer = "returning to construction..."
-    extents = ctx.text_extents(footer)
-    ctx.move_to((renderer.WIDTH - extents.width) / 2, renderer.HEIGHT - 18)
-    ctx.show_text(footer)
-
 
 def _draw_wrapped_text(ctx: cairo.Context, text: str, x: float, y: float,
                         max_width: float, line_height: float = 18):

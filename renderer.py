@@ -18,6 +18,8 @@ DOME_LEFT_X = DOME_CENTER_X - DOME_BASE_RADIUS
 DOME_RIGHT_X = DOME_CENTER_X + DOME_BASE_RADIUS
 DRUM_WIDTH = 420
 PODIUM_WIDTH = 468
+PODIUM_TOP_OFFSET = 10
+PODIUM_HEIGHT = 78
 DRUM_CORNICE_HEIGHT = 16
 LANTERN_SHAFT_HALF_WIDTH = 24
 LANTERN_SHAFT_TOP_HALF_WIDTH = 20
@@ -28,8 +30,10 @@ LANTERN_SPHERE_RADIUS = 5
 LANTERN_CROSS_HEIGHT = 12
 LANTERN_CROSS_ARM = 4
 HOIST_MAST_X = 660
-HOIST_MAST_TOP = 138
-HOIST_MAST_BOTTOM = 438
+HOIST_GROUND_Y = DOME_BASE_Y + PODIUM_TOP_OFFSET + PODIUM_HEIGHT
+HOIST_MAST_HEIGHT = 300
+HOIST_MAST_BOTTOM = HOIST_GROUND_Y + 4
+HOIST_MAST_TOP = HOIST_MAST_BOTTOM - HOIST_MAST_HEIGHT
 HOIST_PULLEY_OFFSET_X = 26
 HOIST_PULLEY_OFFSET_Y = 18
 HOIST_ARM_LEFT = 58
@@ -136,23 +140,6 @@ def draw_background(ctx: cairo.Context):
     ctx.rectangle(0, HEIGHT - 170, WIDTH, 170)
     ctx.fill()
 
-    skyline = [
-        (24, 368, 82, 54),
-        (86, 345, 42, 78),
-        (130, 360, 90, 64),
-        (220, 338, 54, 92),
-        (286, 352, 72, 70),
-        (360, 330, 38, 98),
-        (458, 350, 74, 76),
-        (534, 332, 48, 94),
-        (596, 360, 90, 64),
-        (688, 346, 56, 80),
-    ]
-    palette.set_color_alpha(ctx, palette.VOID, 0.85)
-    for x, y, w, h in skyline:
-        ctx.rectangle(x, y, w, h)
-        ctx.fill()
-
     palette.set_color_alpha(ctx, palette.GOLD, 0.12)
     ctx.rectangle(0, HEIGHT - 150, WIDTH, 2)
     ctx.fill()
@@ -245,9 +232,9 @@ def draw_drum(ctx: cairo.Context, progress: float, show_sidewalls: bool = True):
     visible_height = 72 * progress
 
     podium_x = DOME_CENTER_X - PODIUM_WIDTH / 2
-    podium_y = DOME_BASE_Y + 10
+    podium_y = DOME_BASE_Y + PODIUM_TOP_OFFSET
     podium_w = PODIUM_WIDTH
-    podium_h = 78
+    podium_h = PODIUM_HEIGHT
     palette.set_color(ctx, palette.CREAM)
     ctx.rectangle(podium_x, podium_y, podium_w, podium_h)
     ctx.fill_preserve()
@@ -314,6 +301,20 @@ def _get_dome_max_height() -> float:
     return apex_y
 
 
+def _get_dome_height_for_half_width(target_half_width: float) -> float:
+    """Return the local dome height where the profile reaches a target half-width."""
+    lo = 0.0
+    hi = _get_dome_max_height()
+    for _ in range(48):
+        mid = (lo + hi) / 2
+        _, x_right = geometry.dome_profile_at_height(mid, DOME_BASE_RADIUS)
+        if x_right > target_half_width:
+            lo = mid
+        else:
+            hi = mid
+    return (lo + hi) / 2
+
+
 def _profile_points_until_height(current_height: float, t_start: float, t_end: float, steps: int = 160) -> list[tuple[float, float]]:
     """Return profile points from a side of the dome up to a height cutoff."""
     points = []
@@ -339,6 +340,33 @@ def _stroke_path(ctx: cairo.Context, points: list[tuple[float, float]]):
     ctx.move_to(*points[0])
     for point in points[1:]:
         ctx.line_to(*point)
+    ctx.stroke()
+
+
+def _draw_callout(
+    ctx: cairo.Context,
+    label: str,
+    text_x: float,
+    text_y: float,
+    anchor_x: float,
+    anchor_y: float,
+):
+    """Draw a short label with a connector line to an anchor point."""
+    ctx.select_font_face("sans-serif", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+    ctx.set_font_size(10)
+    palette.set_color(ctx, palette.GOLD)
+    ctx.move_to(text_x, text_y)
+    ctx.show_text(label)
+
+    extents = ctx.text_extents(label)
+    line_start_x = text_x - 10
+    line_start_y = text_y - 4
+    if anchor_x > text_x + extents.width / 2:
+        line_start_x = text_x + extents.width + 10
+
+    ctx.set_line_width(1.2)
+    ctx.move_to(line_start_x, line_start_y)
+    ctx.line_to(anchor_x, anchor_y)
     ctx.stroke()
 
 
@@ -518,44 +546,52 @@ def draw_dome_cutaway(
             _stroke_path(ctx, rib_points)
 
     if current_height > max_height * 0.28:
-        ctx.select_font_face("sans-serif", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
-        ctx.set_font_size(10)
-        palette.set_color(ctx, palette.GOLD)
-
-        callout_y = DOME_BASE_Y - min(current_height * 0.58, max_height * 0.58)
-        ctx.move_to(DOME_CENTER_X + 130, callout_y)
-        ctx.show_text("double shell")
-        ctx.set_line_width(1.2)
-        ctx.move_to(DOME_CENTER_X + 118, callout_y - 4)
-        ctx.line_to(DOME_CENTER_X + 78, callout_y - 16)
-        ctx.stroke()
+        shell_y = min(current_height * 0.58, max_height * 0.58)
+        _, shell_outer_x = geometry.dome_profile_at_height(shell_y, DOME_BASE_RADIUS)
+        shell_screen_y = DOME_BASE_Y - shell_y
+        shell_outer_left = DOME_CENTER_X + shell_outer_x - outer_thickness
+        shell_inner_right = shell_outer_left - gap
+        shell_anchor_x = (shell_outer_left + shell_inner_right) / 2
+        _draw_callout(
+            ctx,
+            "double shell",
+            DOME_CENTER_X + 128,
+            shell_screen_y + 8,
+            shell_anchor_x,
+            shell_screen_y,
+        )
 
         if show_chains and current_height > max_height * 0.45:
-            chain_y = DOME_BASE_Y - max_height * 0.4
-            ctx.move_to(DOME_CENTER_X + 120, chain_y - 6)
-            ctx.show_text("chain rings")
-            ctx.move_to(DOME_CENTER_X + 108, chain_y - 8)
-            ctx.line_to(DOME_CENTER_X + 70, chain_y - 8)
-            ctx.stroke()
+            chain_height = max_height * 0.4
+            _, chain_outer_x = geometry.dome_profile_at_height(chain_height, DOME_BASE_RADIUS)
+            chain_screen_y = DOME_BASE_Y - chain_height
+            _draw_callout(
+                ctx,
+                "chain rings",
+                DOME_CENTER_X + 118,
+                chain_screen_y - 10,
+                DOME_CENTER_X + chain_outer_x - 14,
+                chain_screen_y,
+            )
 
     ctx.restore()
 
 
 def draw_lantern(ctx: cairo.Context, progress: float = 1.0):
     """Draw the lantern atop the completed dome."""
-    max_height = _get_dome_max_height()
-    lantern_base_y = DOME_BASE_Y - max_height
+    lantern_seat_height = _get_dome_height_for_half_width(LANTERN_SHAFT_HALF_WIDTH)
+    lantern_base_y = DOME_BASE_Y - lantern_seat_height
     if progress <= 0:
         return
 
     shaft_height = LANTERN_SHAFT_HEIGHT * progress
     shaft_top = lantern_base_y - shaft_height
 
-    # A flat stone platform keeps the lantern reading as a centered vertical stack.
+    # Keep the stone platform fully above the seat line so its bottom corners meet the dome.
     palette.set_color(ctx, palette.CREAM)
     ctx.rectangle(
         DOME_CENTER_X - LANTERN_SHAFT_HALF_WIDTH,
-        lantern_base_y - 4,
+        lantern_base_y - 8,
         LANTERN_SHAFT_HALF_WIDTH * 2,
         8,
     )
@@ -770,12 +806,6 @@ def render_explorer_figure() -> cairo.ImageSurface:
     draw_springing_ring_overlay(ctx)
     draw_lantern(ctx, 1.0)
     draw_hoist_overview(ctx)
-
-    palette.set_color_alpha(ctx, palette.TEXT_MUTED, 0.9)
-    ctx.select_font_face("sans-serif", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
-    ctx.set_font_size(10)
-    ctx.move_to(514, 536)
-    ctx.show_text("Click a highlighted feature to see the related engineering detail.")
 
     return surface
 

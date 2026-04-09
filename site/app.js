@@ -19,6 +19,9 @@
 
   domeFigure.src = data.figureImage;
   domeFigure.alt = data.figureAlt;
+  const figureWidth = Number(data.figureWidth) || 800;
+  const figureHeight = Number(data.figureHeight) || 600;
+  highlightLayer.setAttribute("viewBox", `0 0 ${figureWidth} ${figureHeight}`);
 
   const hotspotButtons = new Map();
   const topicButtons = new Map();
@@ -31,8 +34,10 @@
   }
 
   function applyHighlightState() {
+    const visibleId = hoveredId || activeId;
+
     highlightGroups.forEach((group, id) => {
-      group.classList.toggle("is-visible", id === hoveredId);
+      group.classList.toggle("is-visible", id === visibleId);
     });
 
     hotspotButtons.forEach((buttons, id) => {
@@ -102,10 +107,10 @@
       const hotspot = document.createElement("button");
       hotspot.type = "button";
       hotspot.className = "hotspot";
-      hotspot.style.left = `${(region.x / 800) * 100}%`;
-      hotspot.style.top = `${(region.y / 600) * 100}%`;
-      hotspot.style.width = `${(region.w / 800) * 100}%`;
-      hotspot.style.height = `${(region.h / 600) * 100}%`;
+      hotspot.style.left = `${(region.x / figureWidth) * 100}%`;
+      hotspot.style.top = `${(region.y / figureHeight) * 100}%`;
+      hotspot.style.width = `${(region.w / figureWidth) * 100}%`;
+      hotspot.style.height = `${(region.h / figureHeight) * 100}%`;
       hotspot.setAttribute("aria-label", detail.hotspot_label);
       hotspot.innerHTML = index === 0 ? `<span class="hotspot-label">${detail.label}</span>` : "";
       hotspot.addEventListener("mouseenter", () => {

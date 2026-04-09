@@ -68,13 +68,19 @@ def dome_profile_at_height(y: float, base_radius: float) -> tuple[float, float]:
 
     Uses the pointed-fifth geometry. For a given height, find the x coordinates
     on the left arc (centered at cx_right) and right arc (centered at cx_left).
+    Heights below the springing ring clamp to the base width, and heights at or
+    above the apex clamp to the centerline.
     """
     R = base_radius
     arc_r = 8 * R / 5
     cx_right = 3 * R / 5
     cx_left = -3 * R / 5
+    apex_y = dome_profile(0.5, base_radius)[1]
 
-    if y >= arc_r:
+    if y <= 0:
+        return (-R, R)
+
+    if y >= apex_y:
         return (0.0, 0.0)
 
     sin_a = y / arc_r
