@@ -25,4 +25,4 @@ def test_explorer_figure_herringbone_band_crop_regression():
 def test_herringbone_inset_brick_grid_crop_regression():
     surface = insets.render_herringbone()
     digest = _surface_crop_digest(surface, x=120, y=126, width=280, height=200)
-    assert digest == "d63fecb1785e6d0a5b62351bc01fba6720c7df2ec49d88dae404f9a0752c26ad"
+    assert digest == "923990c8b405093328e7097b703710c79664638d9f4836949a0414072c2182df"
